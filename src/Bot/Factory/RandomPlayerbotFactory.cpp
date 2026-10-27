@@ -91,6 +91,9 @@ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls
             sPlayerbotAIConfig.excludedBotRaces.end())
             continue;
 
+        if (!sScriptMgr->CanAccountCreateCharacter(session->GetAccountId(), race, cls))
+            continue;
+
         // Try to get 50/50 faction distribution for random bot population balance.
         // Without this check, races from the faction with more class options would dominate.
         if (alliance == IsAlliance(race))
