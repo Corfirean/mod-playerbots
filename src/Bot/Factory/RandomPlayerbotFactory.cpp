@@ -7,6 +7,9 @@
 #include "RandomPlayerbotFactory.h"
 #include "AccountMgr.h"
 #include "ArenaTeamMgr.h"
+#include "Battleground.h"
+#include "BattlegroundMgr.h"
+#include "DBCStores.h"
 #include "CharacterCache.h"
 #include "CoaBotNames.h"
 #include "CoaReborn.h"
@@ -1105,6 +1108,11 @@ void RandomPlayerbotFactory::AssignBotToArenaTeamInternal(Player* bot)
             return;
     }
 
+    Battleground const* arena = sBattlegroundMgr->GetBattlegroundTemplate(BATTLEGROUND_AA);
+    PvPDifficultyEntry const* bracket = arena ? GetBattlegroundBracketByLevel(arena->GetMapId(), bot->GetLevel()) : nullptr;
+    if (!bracket || bracket->GetBracketId() != sPlayerbotAIConfig.randomBotAutoJoinArenaBracket)
+        return;
+
     TeamId const botTeam = bot->GetTeamId();
 
     // Randomize type order so no single type starves the others
@@ -1114,7 +1122,7 @@ void RandomPlayerbotFactory::AssignBotToArenaTeamInternal(Player* bot)
 
     std::vector<ArenaTeam*> candidates;
     for (ArenaType type : order)
-        CollectJoinableBotArenaTeams(type, botTeam, candidates);
+        CollectJoinableBotArenaTeams(type, botTeam, bracket->GetBracketId(), candidates);
 
     for (size_t i = candidates.size(); i > 0; --i)
     {
@@ -1207,7 +1215,7 @@ void RandomPlayerbotFactory::GetBotArenaTeamCaptains(ArenaType type, std::vector
             out.push_back(team->GetCaptain());
 }
 
-void RandomPlayerbotFactory::CollectJoinableBotArenaTeams(ArenaType type, TeamId faction, std::vector<ArenaTeam*>& out)
+void RandomPlayerbotFactory::CollectJoinableBotArenaTeams(ArenaType type, TeamId faction, uint32 bracket, std::vector<ArenaTeam*>& out)
 {
     auto it = _botArenaTeamRegistry.find(type);
     if (it == _botArenaTeamRegistry.end())
@@ -1221,7 +1229,24 @@ void RandomPlayerbotFactory::CollectJoinableBotArenaTeams(ArenaType type, TeamId
             continue;
 
         CharacterCacheEntry const* entry = sCharacterCache->GetCharacterCacheByGuid(team->GetCaptain());
-        if (entry && Player::TeamIdForRace(entry->Race) == faction)
+        if (!entry || Player::TeamIdForRace(entry->Race) != faction)
+            continue;
+
+        Battleground const* arena = sBattlegroundMgr->GetBattlegroundTemplate(BATTLEGROUND_AA);
+        if (!arena)
+            return;
+        bool compatible = true;
+        for (auto const& member : team->GetMembers())
+        {
+            uint8 const level = sCharacterCache->GetCharacterLevelByGuid(member.Guid);
+            PvPDifficultyEntry const* memberBracket = GetBattlegroundBracketByLevel(arena->GetMapId(), level);
+            if (!memberBracket || memberBracket->GetBracketId() != bracket)
+            {
+                compatible = false;
+                break;
+            }
+        }
+        if (compatible)
             out.push_back(team);
     }
 }
