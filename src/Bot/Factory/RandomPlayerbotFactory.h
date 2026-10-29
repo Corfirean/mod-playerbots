@@ -73,7 +73,7 @@ private:
     std::string const CreateRandomBotName(NameRaceAndGender raceAndGender);
 
     static void AssignBotToArenaTeamInternal(Player* bot);
-    static void CollectJoinableBotArenaTeams(ArenaType type, TeamId faction, std::vector<ArenaTeam*>& out);
+    static void CollectJoinableBotArenaTeams(ArenaType type, TeamId faction, uint32 bracket, std::vector<ArenaTeam*>& out);
     static void CreateBotArenaTeam(Player* bot, ArenaType type);
     static std::string CreateRandomArenaTeamName();
 
